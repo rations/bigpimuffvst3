@@ -1,0 +1,23 @@
+# BigBubbleMuff static-analysis configuration. See CLAUDE.md "Security".
+# Scoped to our own sources (third-party/JUCE headers are filtered out below).
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  clang-analyzer-*,
+  misc-*,
+  performance-*,
+  readability-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -readability-identifier-length,
+  -misc-non-private-member-variables-in-classes,
+  -cppcoreguidelines-non-private-member-variables-in-classes
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/src/.*'
+FormatStyle: file
