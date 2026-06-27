@@ -85,9 +85,21 @@ juce_add_plugin(BigBubbleMuff
 
 juce_generate_juce_header(BigBubbleMuff)
 
+# ---- GUI image assets (embedded as a C array; no runtime file I/O) ----------
+# Names map to BinaryData::<file>_png (e.g. gui/dialknob.png -> dialknob_png).
+juce_add_binary_data(BBMBinaryData SOURCES
+  gui/mufffbase.png
+  gui/dialknob.png
+  gui/footswitch_up.png
+  gui/footswitch_down.png
+  gui/onlightmuff.png
+  gui/offlightmuff.png)
+
 set(BBM_SOURCES
   src/PluginProcessor.cpp
   src/PluginEditor.cpp
+  src/ui/MuffLookAndFeel.cpp
+  src/ui/FootswitchButton.cpp
   src/dsp/BigMuffPi.cpp)
 
 target_sources(BigBubbleMuff PRIVATE ${BBM_SOURCES})
@@ -108,6 +120,7 @@ target_compile_definitions(BigBubbleMuff PUBLIC
 
 target_link_libraries(BigBubbleMuff
   PRIVATE
+    BBMBinaryData
     juce::juce_audio_utils
     juce::juce_dsp
     chowdsp::chowdsp_wdf
