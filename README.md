@@ -28,6 +28,38 @@ Phased build:
 - **Phase B** — joint BJT+diode R-type nonlinear roots for maximum fidelity
   (planned).
 
+## Install (pre-built release)
+
+Download `BigBubbleMuff-<version>-linux-<arch>.tar.gz` from the Releases page and
+extract it:
+
+```bash
+tar -xzf BigBubbleMuff-0.1.0-linux-x86_64.tar.gz
+cd BigBubbleMuff-0.1.0
+./install.sh          # per-user (~/.vst3, ~/.local/bin); run as root for system-wide
+```
+
+`install.sh` is POSIX `sh` and distro-agnostic: it checks that the required
+runtime libraries are present and, if any are missing, prints the exact package
+list for your package manager (**apt**, **pacman**, **xbps**, **dnf**) and offers
+to install them. Flags: `--yes` (don't prompt before installing packages),
+`--no-deps` (skip the check). Remove everything again with `./uninstall.sh`.
+
+The standalone also gets a `bigbubblemuff.desktop` entry so it appears in your
+application menu.
+
+### Debian / Devuan package
+
+A `.deb` is provided for Debian, Ubuntu and derivatives. It has **no systemd
+dependency**, so it installs cleanly on **Devuan** and other sysvinit systems:
+
+```bash
+sudo apt install ./bigbubblemuff_0.1.0_amd64.deb
+```
+
+This installs the VST3 to `/usr/lib/vst3`, the standalone to `/usr/bin`, and only
+pulls in shared-library dependencies (ALSA, freetype, fontconfig, X11).
+
 ## Build
 
 Requirements: CMake ≥ 3.25, a C++20 compiler (GCC 14 / Clang), Ninja, and Linux
@@ -46,6 +78,18 @@ Artefacts:
 
 Offline / pinned-local JUCE:
 `-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE` (JUCE 8.0.13 checkout).
+
+### Building release packages
+
+```bash
+./packaging/makedist.sh   # → dist/BigBubbleMuff-<version>-linux-<arch>.tar.gz
+./packaging/makedeb.sh    # → dist/bigbubblemuff_<version>_<arch>.deb
+```
+
+`makedist.sh` builds Release, strips the binaries, and stages the VST3,
+standalone, `install.sh`/`uninstall.sh`, desktop entry, icon and `COPYING` into a
+tarball. `makedeb.sh` builds the systemd-free `.deb` (override the package
+maintainer with the `MAINTAINER` env var).
 
 ## Dependencies (pinned by tag + SHA)
 | Dependency  | Version | Commit                                     |
