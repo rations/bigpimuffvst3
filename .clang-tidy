@@ -1,21 +1,24 @@
 # BigBubbleMuff static-analysis configuration. See CLAUDE.md "Security".
 # Scoped to our own sources (third-party/JUCE headers are filtered out below).
+#
+# Intentionally limited to the families that find *bugs* and security issues —
+# bugprone, cert, cppcoreguidelines, clang-analyzer — matching CLAUDE.md §4.
+# The readability-*/misc-*/performance-* style families are deliberately NOT
+# enabled: they relitigate formatting (e.g. uppercase literal suffixes, braces
+# on one-line ifs) that conflicts with our clang-format house style, which is
+# the single source of truth for layout. clang-format owns style; clang-tidy
+# owns correctness.
 Checks: >
   -*,
   bugprone-*,
   cert-*,
   cppcoreguidelines-*,
   clang-analyzer-*,
-  misc-*,
-  performance-*,
-  readability-*,
+  -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-magic-numbers,
-  -readability-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-avoid-non-const-global-variables,
-  -readability-identifier-length,
-  -misc-non-private-member-variables-in-classes,
   -cppcoreguidelines-non-private-member-variables-in-classes
 
 WarningsAsErrors: ''

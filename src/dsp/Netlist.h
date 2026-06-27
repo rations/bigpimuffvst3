@@ -24,6 +24,22 @@ inline constexpr float kFbC = 470.0e-12f; // C12 / C11 (Bubble-Font single cap)
 inline constexpr float kCouplingC = 0.047e-6f; // C6 / C7
 inline constexpr float kCouplingR = 100.0e3f;  // R20 / R16
 
+// --- Clipping-stage DC network (Phase B nodal transistor model) ------------
+// Common-emitter sustain stage: collector load R18/R12, emitter R22/R21,
+// base bias R20/R16 to ground, collector-to-base feedback R17/R15 (= kFbR) with
+// the 470pF feedback cap (= kFbC) and the antiparallel diode pair across it.
+inline constexpr float kStageRc = 12.0e3f;  // R18 / R12 collector load
+inline constexpr float kStageRe = 390.0f;   // R22 / R21 emitter (Bubble-Font)
+inline constexpr float kStageRb = 100.0e3f; // R20 / R16 base bias to ground
+inline constexpr float kSupplyV = 9.0f;     // 9 V rail
+
+// --- Bipolar transistor (3102EM / 2N549C / 547C) Ebers-Moll parameters -----
+// Silicon small-signal NPN. High beta (549C/3102EM are high-gain types).
+inline constexpr float kBjtIs = 1.0e-14f;  // transport saturation current [A]
+inline constexpr float kBjtBetaF = 300.0f; // forward current gain
+inline constexpr float kBjtBetaR = 3.0f;   // reverse current gain
+inline constexpr float kBjtVt = 25.85e-3f; // thermal voltage [V]
+
 // --- Input coupling: C1 1uF into ~100k -------------------------------------
 inline constexpr float kInputC = 1.0e-6f; // C1
 inline constexpr float kInputR = 100.0e3f;

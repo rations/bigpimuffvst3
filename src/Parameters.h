@@ -12,6 +12,7 @@ inline constexpr auto sustain = "sustain";   // R24 100k SUSTAIN/DIST pot, 0..1
 inline constexpr auto tone = "tone";         // R23 100k TONE pot, 0..1
 inline constexpr auto volume = "volume";     // R26 100k VOLUME pot, 0..1
 inline constexpr auto output = "outputTrim"; // post-model trim in dB
+inline constexpr auto gate = "gate";         // pre-gain noise gate, 0..1 (0 = off)
 inline constexpr auto bypass = "bypass";     // host bypass
 } // namespace pid
 
@@ -39,6 +40,9 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
   layout.add(std::make_unique<AudioParameterFloat>(
       ParameterID{pid::output, kStateVersion}, "Output",
       NormalisableRange<float>{-24.0f, 24.0f, 0.1f}, 0.0f));
+  layout.add(
+      std::make_unique<AudioParameterFloat>(ParameterID{pid::gate, kStateVersion}, "Gate",
+                                            NormalisableRange<float>{0.0f, 1.0f}, 0.4f));
   layout.add(std::make_unique<AudioParameterBool>(ParameterID{pid::bypass, kStateVersion},
                                                   "Bypass", false));
 

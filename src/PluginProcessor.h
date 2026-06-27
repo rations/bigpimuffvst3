@@ -14,6 +14,10 @@ public:
   BigBubbleMuffProcessor();
   ~BigBubbleMuffProcessor() override = default;
 
+  // Framework object: non-copyable (JUCE macro below) and non-movable.
+  BigBubbleMuffProcessor(BigBubbleMuffProcessor &&) = delete;
+  BigBubbleMuffProcessor &operator=(BigBubbleMuffProcessor &&) = delete;
+
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override {}
   bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
@@ -49,6 +53,7 @@ private:
   std::atomic<float> *toneParam_ = nullptr;
   std::atomic<float> *volumeParam_ = nullptr;
   std::atomic<float> *outputParam_ = nullptr;
+  std::atomic<float> *gateParam_ = nullptr;
   std::atomic<float> *bypassParam_ = nullptr;
 
   BigMuffPi engine_;

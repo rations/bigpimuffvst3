@@ -20,6 +20,7 @@ struct Controls {
   float tone = 0.5f;     // 0..1, R23 bass<->treble blend
   float volume = 0.5f;   // 0..1, R26 output divider
   float outputTrimDb = 0.0f;
+  float gate = 0.4f; // 0..1 pre-gain noise gate threshold (0 = off)
 };
 
 class BigMuffPi {
@@ -29,6 +30,8 @@ public:
 
   BigMuffPi(const BigMuffPi &) = delete;
   BigMuffPi &operator=(const BigMuffPi &) = delete;
+  BigMuffPi(BigMuffPi &&) = delete;
+  BigMuffPi &operator=(BigMuffPi &&) = delete;
 
   // Allocates and sizes all state. Call from prepareToPlay (message thread).
   void prepare(const juce::dsp::ProcessSpec &spec);
@@ -36,7 +39,9 @@ public:
   // Resets filter/WDF state without reallocating.
   void reset();
 
-  // Processes one block in place (mono per channel). Real-time-safe.
+  // Processes one block in place. The pedal is mono: the input is downmixed to a
+  // single channel, the circuit is solved once, and the result is fanned out to
+  // every output channel (dual-mono on a stereo bus). Real-time-safe.
   void process(juce::dsp::AudioBlock<float> block);
 
   // Pushes new control values (real-time-safe; smoothed internally).

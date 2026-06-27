@@ -16,6 +16,10 @@ public:
   explicit BigBubbleMuffEditor(BigBubbleMuffProcessor &p);
   ~BigBubbleMuffEditor() override = default;
 
+  // Framework object: non-copyable (JUCE macro below) and non-movable.
+  BigBubbleMuffEditor(BigBubbleMuffEditor &&) = delete;
+  BigBubbleMuffEditor &operator=(BigBubbleMuffEditor &&) = delete;
+
   void resized() override;
 
 private:

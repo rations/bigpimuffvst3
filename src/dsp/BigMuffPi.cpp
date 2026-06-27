@@ -1,37 +1,48 @@
-// BigBubbleMuff — top-level DSP engine implementation (Phase A circuit model).
+// BigBubbleMuff — top-level DSP engine implementation (Phase B circuit model).
 // Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
 //
 // Signal chain (per the schematic, see docs/netlist.md):
 //   IN -> [C1 high-pass] -> Q4 booster gain
-//      -> SUSTAIN drive -> [C6 high-pass] -> clip stage 1 (WDF diode pair, C12)
-//      -> stage-2 drive  -> [C7 high-pass] -> clip stage 2 (WDF diode pair, C11)
+//      -> SUSTAIN drive -> clip stage 1 (nodal BJT + diode pair, C6 coupling)
+//      -> interstage    -> clip stage 2 (nodal BJT + diode pair, C7 coupling)
 //      -> TONE stack (R23/C8/R5) -> Q1 recovery gain
 //      -> [C2 high-pass / DC block] -> VOLUME -> OUT
-// The nonlinear clippers run inside a 4x oversampled region to limit aliasing.
-// Everything reaching the output is finiteness-guarded.
+// The two clipping stages are full nodal circuit models (Ebers-Moll BJT with the
+// antiparallel diode pair jointly inside the collector->base feedback loop, see
+// TransistorStage.h). Each stage carries its own input coupling capacitor, so no
+// separate coupling high-pass is needed in front of it. The nonlinear core runs
+// inside a 4x oversampled region to limit aliasing; everything reaching the
+// output is finiteness-guarded.
 #include "dsp/BigMuffPi.h"
 
 #include "dsp/DiodeClipper.h"
 #include "dsp/Filters.h"
 #include "dsp/Netlist.h"
+#include "dsp/NoiseGate.h"
 #include "dsp/ToneStack.h"
+#include "dsp/TransistorStage.h"
 
 #include <cmath>
-#include <vector>
 
 namespace bbm {
 
 namespace {
 constexpr int kOversampleFactor = 2; // 4x total (2^2) around the nonlinear core.
 
-// Fixed gain staging (tuned from the schematic's high open-loop stage gains).
-constexpr float kInputGain = 2.0f;    // Q4 input booster
-constexpr float kStage2Drive = 40.0f; // fixed drive into the second clipper
-constexpr float kRecoveryGain = 1.4f; // Q1 output recovery
+// All four Big Muff stages are real common-emitter transistor stages (see
+// TransistorStage), each with ~19x gain. The two clip stages add an antiparallel
+// diode-pair limiter (DiodeClipper) on their output, clamping the swing to
+// ~+/-0.5 V — the Big Muff fuzz. The high stage gain is what gives the pedal its
+// sustain: even a tiny input is amplified into the clippers. The only scalars are
+// the SUSTAIN pot divider feeding clip 1 and a final scale to plug-in full scale.
+constexpr float kOutputScale = 0.18f; // circuit volts -> ~unity at the output
 
-// SUSTAIN maps to drive into clipper 1: dMin..dMax, geometric (knob feel).
-constexpr float kDrive1Min = 2.0f;
-constexpr float kDrive1Max = 300.0f;
+// SUSTAIN maps to the divider feeding clip 1 (R24 pot): dMin..dMax, geometric
+// (knob feel). With ~19x booster gain ahead of it, even a small fraction pushes
+// the clippers into clipping at high settings (max sustain/compression); low
+// settings keep quiet playing below the diode knee for a cleaner edge.
+constexpr float kDrive1Min = 0.005f;
+constexpr float kDrive1Max = 0.6f;
 
 inline float sustainToDrive(float sustain01) {
   const float s = juce::jlimit(0.0f, 1.0f, sustain01);
@@ -43,51 +54,62 @@ inline float sanitise(float x) {
   return std::isfinite(x) ? x : 0.0f;
 }
 
-// Per-audio-channel circuit state (no heap once constructed).
+// Per-audio-channel circuit state (no heap once constructed). The four NPN
+// stages of the real pedal, in order: input booster, two diode clippers, output
+// recovery — each a nodal TransistorStage.
 struct Channel {
-  OnePole inputHP;  // C1 1uF input coupling / DC block
-  OnePole stage1HP; // C6 0.047uF coupling into clip 1
-  DiodeClipper clip1;
-  OnePole stage2HP; // C7 0.047uF coupling into clip 2
-  DiodeClipper clip2;
+  OnePole inputHP;         // C1 1uF input coupling / DC block
+  TransistorStage booster; // Q4 input booster gain stage
+  TransistorStage clip1;   // Q3 gain stage
+  DiodeClipper clip1Diode; // D1 antiparallel pair across Q3 feedback
+  TransistorStage clip2;   // Q2 gain stage
+  DiodeClipper clip2Diode; // D2 antiparallel pair across Q2 feedback
   ToneStack tone;
-  OnePole outputHP; // C2 1uF output coupling / DC block
+  TransistorStage recovery; // Q1 output recovery gain stage
+  OnePole outputHP;         // C2 1uF output coupling / DC block
 
   void prepare(double fs) {
     inputHP.prepare(fs, 15.0f);
-    stage1HP.prepare(fs, 34.0f); // ~1/(2pi*100k*0.047uF)
-    stage2HP.prepare(fs, 34.0f);
     outputHP.prepare(fs, 15.0f);
+    booster.prepare(fs);
     clip1.prepare(fs);
+    clip1Diode.prepare();
     clip2.prepare(fs);
+    clip2Diode.prepare();
+    recovery.prepare(fs);
     tone.prepare(fs);
   }
 
   void reset() {
     inputHP.reset();
-    stage1HP.reset();
-    stage2HP.reset();
     outputHP.reset();
+    booster.reset();
     clip1.reset();
+    clip1Diode.reset();
     clip2.reset();
+    clip2Diode.reset();
+    recovery.reset();
     tone.reset();
   }
 
   inline float process(float x, float drive1, float tone01) noexcept {
-    x = inputHP.processHighpass(x) * kInputGain;
+    x = inputHP.processHighpass(x);
 
-    // Stage 1: couple, drive, clip.
-    x = stage1HP.processHighpass(x) * drive1;
-    x = clip1.process(x);
+    // Q4 booster brings the guitar level up into the clippers.
+    x = booster.process(x);
 
-    // Stage 2: couple, drive, clip.
-    x = stage2HP.processHighpass(x) * kStage2Drive;
-    x = clip2.process(x);
+    // SUSTAIN pot divides the booster output into the first high-gain clip stage;
+    // each clip stage amplifies then the antiparallel diode pair clamps the swing
+    // (~+/-0.5 V) — the soft, sustaining Big Muff fuzz.
+    x = clip1Diode.process(clip1.process(x * drive1));
+    x = clip2Diode.process(clip2.process(x));
 
-    // Tone + recovery + output coupling.
+    // Passive tone stack, then the Q1 recovery stage makes up its loss.
     tone.setTone(tone01);
-    x = tone.process(x) * kRecoveryGain;
-    return outputHP.processHighpass(x);
+    x = tone.process(x);
+    x = recovery.process(x);
+
+    return outputHP.processHighpass(x) * kOutputScale;
   }
 };
 } // namespace
@@ -95,31 +117,40 @@ struct Channel {
 struct BigMuffPi::Impl {
   double sampleRate = 44100.0;
 
+  // The Big Muff is a mono pedal: one input jack, one circuit, one output jack.
+  // We solve a single mono circuit (the expensive Newton nodal solve) and fan the
+  // result out to however many output channels the host wants. Processing per
+  // channel would just solve the identical guitar signal twice. Hence one mono
+  // oversampler, one Channel, and a mono scratch buffer for the downmixed input.
   std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
-  // Channels hold WDF objects with internal references -> non-movable; own each
+  // The Channel holds WDF objects with internal references -> non-movable; own it
   // via unique_ptr and construct in place.
-  std::vector<std::unique_ptr<Channel>> channels;
+  std::unique_ptr<Channel> channel;
+  juce::AudioBuffer<float> monoBuf; // downmixed mono input/output, base rate
+  NoiseGate gate;                   // pre-gain input gate (base rate, pre-oversample)
 
   juce::SmoothedValue<float> drive1{sustainToDrive(0.75f)};
   juce::SmoothedValue<float> tone{0.5f};
   juce::SmoothedValue<float> volume{0.5f};
   juce::SmoothedValue<float> outputGain{1.0f};
+  float gateAmount = 0.4f; // set from setControls (audio thread), applied per block
 
   void prepare(const juce::dsp::ProcessSpec &spec) {
     sampleRate = spec.sampleRate;
     const double osRate = spec.sampleRate * (1 << kOversampleFactor);
 
+    // One mono oversampler / circuit (see above).
     oversampler = std::make_unique<juce::dsp::Oversampling<float>>(
-        spec.numChannels, kOversampleFactor,
-        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR);
+        1, kOversampleFactor, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR);
     oversampler->initProcessing(static_cast<size_t>(spec.maximumBlockSize));
 
-    channels.clear();
-    channels.reserve(spec.numChannels);
-    for (juce::uint32 i = 0; i < spec.numChannels; ++i)
-      channels.push_back(std::make_unique<Channel>());
-    for (auto &ch : channels)
-      ch->prepare(osRate); // circuit runs at the oversampled rate
+    monoBuf.setSize(1, static_cast<int>(spec.maximumBlockSize), false, false, true);
+
+    // The gate runs on the clean mono input at the base rate, before oversampling.
+    gate.prepare(spec.sampleRate);
+
+    channel = std::make_unique<Channel>();
+    channel->prepare(osRate); // circuit runs at the oversampled rate
 
     const double smooth = 0.02; // 20 ms control smoothing
     // drive/tone/volume are consumed inside the oversampled loop; outputGain at
@@ -130,13 +161,31 @@ struct BigMuffPi::Impl {
     outputGain.reset(spec.sampleRate, smooth);
 
     reset();
+    settle();
   }
 
+  // Cheap, real-time-safe: zero filter/oversampler state. Safe to call from a
+  // host's audio-thread reset().
   void reset() {
     if (oversampler != nullptr)
       oversampler->reset();
-    for (auto &ch : channels)
-      ch->reset();
+    if (channel != nullptr)
+      channel->reset();
+    gate.reset();
+  }
+
+  // Flush the turn-on transient. The stages' DC operating points relax through
+  // the AC-coupled cascade (and are amplified by the recovery stage) over
+  // ~100 ms; run silence through so the first audio block starts settled and the
+  // plug-in emits no turn-on pop. Expensive — call only from prepare() on the
+  // message thread, never from the audio thread.
+  void settle() {
+    const float d = drive1.getTargetValue();
+    const float t = tone.getTargetValue();
+    const int n =
+        static_cast<int>(sampleRate * static_cast<double>(1 << kOversampleFactor) * 0.2);
+    for (int i = 0; i < n; ++i)
+      channel->process(0.0f, d, t);
   }
 };
 
@@ -157,6 +206,7 @@ void BigMuffPi::setControls(const Controls &c) {
   impl_->volume.setTargetValue(juce::jlimit(0.0f, 1.0f, c.volume));
   impl_->outputGain.setTargetValue(
       juce::Decibels::decibelsToGain(juce::jlimit(-24.0f, 24.0f, c.outputTrimDb)));
+  impl_->gateAmount = juce::jlimit(0.0f, 1.0f, c.gate);
 }
 
 int BigMuffPi::getOversamplingLatencySamples() const {
@@ -167,33 +217,49 @@ int BigMuffPi::getOversamplingLatencySamples() const {
 
 void BigMuffPi::process(juce::dsp::AudioBlock<float> block) {
   auto &os = *impl_->oversampler;
-  auto upBlock = os.processSamplesUp(block);
 
-  const auto numCh = juce::jmin(upBlock.getNumChannels(), impl_->channels.size());
-  const auto numSamp = upBlock.getNumSamples();
+  const auto numInCh = block.getNumChannels();
+  const auto numSamp = block.getNumSamples();
+  if (numInCh == 0 || numSamp == 0)
+    return;
 
+  // Downmix to a single mono input (a Big Muff has one input jack). Averaging the
+  // channels keeps a mono-duplicated stereo feed identical to a true mono feed,
+  // and avoids the +6 dB a naive sum would add into the clippers. The pre-gain
+  // noise gate then acts on this clean input, before the high-gain stages amplify
+  // its noise floor into hiss (see NoiseGate.h).
+  impl_->gate.setAmount(impl_->gateAmount);
+  auto *mono = impl_->monoBuf.getWritePointer(0);
+  const float invCh = 1.0f / static_cast<float>(numInCh);
   for (size_t n = 0; n < numSamp; ++n) {
+    float acc = 0.0f;
+    for (size_t ch = 0; ch < numInCh; ++ch)
+      acc += block.getSample(static_cast<int>(ch), static_cast<int>(n));
+    mono[n] = impl_->gate.process(sanitise(acc * invCh));
+  }
+
+  // Solve the one mono circuit at the oversampled rate.
+  juce::dsp::AudioBlock<float> monoBlock(impl_->monoBuf);
+  auto baseMono = monoBlock.getSubBlock(0, numSamp);
+  auto upMono = os.processSamplesUp(baseMono);
+  const auto upSamp = upMono.getNumSamples();
+  for (size_t n = 0; n < upSamp; ++n) {
     const float drive1 = impl_->drive1.getNextValue();
     const float tone = impl_->tone.getNextValue();
     const float vol = impl_->volume.getNextValue();
-    for (size_t ch = 0; ch < numCh; ++ch) {
-      const auto ci = static_cast<int>(ch);
-      float x = upBlock.getSample(ci, static_cast<int>(n));
-      x = impl_->channels[ch]->process(sanitise(x), drive1, tone);
-      upBlock.setSample(ci, static_cast<int>(n), sanitise(x * vol));
-    }
+    float x = upMono.getSample(0, static_cast<int>(n));
+    x = impl_->channel->process(sanitise(x), drive1, tone);
+    upMono.setSample(0, static_cast<int>(n), sanitise(x * vol));
   }
+  os.processSamplesDown(baseMono);
 
-  os.processSamplesDown(block);
-
-  // Output trim at base rate; advance the smoother once per sample (all channels).
-  const auto outCh = block.getNumChannels();
-  for (size_t n = 0; n < block.getNumSamples(); ++n) {
+  // Output trim at base rate, then fan the mono result out to every output
+  // channel (dual-mono on a stereo bus).
+  for (size_t n = 0; n < numSamp; ++n) {
     const float g = impl_->outputGain.getNextValue();
-    for (size_t ch = 0; ch < outCh; ++ch) {
-      auto *d = block.getChannelPointer(ch);
-      d[n] = sanitise(d[n] * g);
-    }
+    const float out = sanitise(mono[n] * g);
+    for (size_t ch = 0; ch < numInCh; ++ch)
+      block.setSample(static_cast<int>(ch), static_cast<int>(n), out);
   }
 }
 
