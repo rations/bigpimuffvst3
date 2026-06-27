@@ -70,8 +70,8 @@ void BigBubbleMuffProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 }
 
 juce::AudioProcessorEditor *BigBubbleMuffProcessor::createEditor() {
-  // JUCE contract: the host takes ownership of the returned editor (CLAUDE.md §3
-  // exempts the framework entry points from the no-raw-`new` rule).
+  // JUCE contract: the host takes ownership of the returned editor (framework
+  // entry points are exempt from the project's no-raw-`new` rule).
   // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
   return new BigBubbleMuffEditor(*this);
 }
@@ -93,7 +93,7 @@ void BigBubbleMuffProcessor::setStateInformation(const void *data, int sizeInByt
 } // namespace bbm
 
 // Plugin entry point. JUCE/the host takes ownership of the returned processor
-// (CLAUDE.md §3 exempts this framework entry point from the no-raw-`new` rule).
+// (this framework entry point is exempt from the project's no-raw-`new` rule).
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
   // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
   return new bbm::BigBubbleMuffProcessor();

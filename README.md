@@ -1,17 +1,26 @@
 # BigBubbleMuff
 
-A native **Linux VST3** emulation of the Russian **"Bubble Font" Big Muff Pi**
-fuzz/distortion (schematic versions V7C Green/Black Russian and V8 Small Box Black
-Russian — circuit-identical). Built in C++20 with [JUCE](https://juce.com) and a
-full **Wave Digital Filter** circuit model via
+A native **Linux VST3 + Standalone** emulation of the Russian **"Bubble Font" Big
+Muff Pi** fuzz/distortion (schematic versions V7C Green/Black Russian and V8 Small
+Box Black Russian — circuit-identical). Built in C++20 with [JUCE](https://juce.com)
+and a full **Wave Digital Filter** circuit model via
 [chowdsp_wdf](https://github.com/Chowdhury-DSP/chowdsp_wdf).
 
-The three controls — **Sustain**, **Tone**, **Volume** — behave like the real
-pedal because the model is derived from the actual schematic netlist
-([docs/netlist.md](docs/netlist.md)), not a generic distortion curve.
+The three pedal controls — **Sustain**, **Tone**, **Volume** — behave like the
+real pedal because the model is derived from the actual schematic netlist
+([docs/netlist.md](docs/netlist.md)), not a generic distortion curve. Two utility
+controls — an **Output** trim and a pre-gain **Gate** — sit alongside them.
+
+## Interface
+- Skinned pedal editor (faceplate + rotary knobs + indicator LED + footswitch).
+- **Resizable** window with the artwork's aspect ratio locked.
+- A slim top bar with a **preset** dropdown: save and recall knob positions. User
+  presets are stored as plain `.xml` files under `~/.config/BigBubbleMuff/Presets`.
+- The **Standalone** app adds a native titlebar and a File/Help menu
+  (`Preferences` → audio device settings, `About`).
 
 ## Status
-Phased build (see [CLAUDE.md](CLAUDE.md) and the project plan):
+Phased build:
 - **Phase A** — per-stage WDF model with WDF diode-pair clippers, input booster,
   passive tone stack and output recovery. **Complete & verified**: builds clean,
   tests pass, pluginval strictness 10 passes, ASan/UBSan clean, binary hardened
@@ -30,8 +39,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The VST3 is built to `build/BigBubbleMuff_artefacts/Release/VST3/BigBubbleMuff.vst3`
-and copied to `~/.vst3`.
+Artefacts:
+- VST3 → `build/BigBubbleMuff_artefacts/Release/VST3/BigBubbleMuff.vst3`
+  (also copied to `~/.vst3`).
+- Standalone → `build/BigBubbleMuff_artefacts/Release/Standalone/BigBubbleMuff`.
 
 Offline / pinned-local JUCE:
 `-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE` (JUCE 8.0.13 checkout).

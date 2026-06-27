@@ -2,8 +2,8 @@
 // Copyright (C) 2026  BigBubbleMuff contributors. GPL-3.0-or-later (see COPYING).
 //
 // These values come ONLY from the transcribed schematic (docs/netlist.md). Do not
-// invent values here — see CLAUDE.md §5. Corner frequencies are computed from the
-// component R/C products so the model's voicing follows the hardware.
+// invent values here. Corner frequencies are computed from the component R/C
+// products so the model's voicing follows the hardware.
 #pragma once
 
 namespace bbm::netlist {

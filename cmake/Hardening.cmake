@@ -1,7 +1,7 @@
 # Hardening.cmake — security/hardening flags exposed as an INTERFACE target.
 #
 # Link the `BigBubbleMuff::hardening` target into our own code (NOT into JUCE /
-# third-party targets, which may not be -Werror clean). See CLAUDE.md "Security".
+# third-party targets, which may not be -Werror clean).
 
 add_library(bbm_hardening INTERFACE)
 add_library(BigBubbleMuff::hardening ALIAS bbm_hardening)
@@ -9,7 +9,7 @@ add_library(BigBubbleMuff::hardening ALIAS bbm_hardening)
 # Strict warnings are applied PER-FILE to our own sources only (not to JUCE /
 # third-party translation units, which are not clean under these flags). Consumers
 # attach them with: set_source_files_properties(<our.cpp> PROPERTIES
-#   COMPILE_OPTIONS "${BBM_WARNING_FLAGS}"). See CLAUDE.md "Code style"/"Security".
+#   COMPILE_OPTIONS "${BBM_WARNING_FLAGS}").
 option(BBM_WERROR "Treat warnings as errors in BigBubbleMuff sources" ON)
 # Note: JUCE/chowdsp headers are consumed as SYSTEM includes (see CMakeLists),
 # so these flags catch issues in OUR code without drowning in framework noise.

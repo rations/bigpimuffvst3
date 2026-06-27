@@ -5,7 +5,7 @@ by **Kit Rae** ([BigMuffPage](https://www.bigmuffpage.com)), cross-checked again
 the project owner's reference notes. The schematic image and those notes are
 copyrighted by their authors and are kept locally only — they are **not**
 redistributed in this repository. This file (factual component values) is the
-**single source of truth** for the WDF model — see `CLAUDE.md` §5. The schematic
+**single source of truth** for the WDF model. The schematic
 is the canonical four-NPN Big Muff Pi; component roles below follow from that
 topology.
 
