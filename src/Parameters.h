@@ -42,7 +42,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
       NormalisableRange<float>{-24.0f, 24.0f, 0.1f}, 0.0f));
   layout.add(
       std::make_unique<AudioParameterFloat>(ParameterID{pid::gate, kStateVersion}, "Gate",
-                                            NormalisableRange<float>{0.0f, 1.0f}, 0.4f));
+                                            NormalisableRange<float>{0.0f, 1.0f}, 0.12f));
   layout.add(std::make_unique<AudioParameterBool>(ParameterID{pid::bypass, kStateVersion},
                                                   "Bypass", false));
 

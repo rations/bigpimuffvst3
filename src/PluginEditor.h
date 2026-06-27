@@ -6,6 +6,7 @@
 #include "ui/FootswitchButton.h"
 #include "ui/LedComponent.h"
 #include "ui/MuffLookAndFeel.h"
+#include "ui/PresetBar.h"
 
 #include <array>
 #include <cstddef>
@@ -15,9 +16,11 @@
 
 namespace bbm {
 
-// Image-layered editor: the worn faceplate is the backdrop, five rotary knobs
-// (Sustain, Tone, Volume, Output, Gate) sit on top, a lamp shows engage state,
-// and the chrome footswitch toggles bypass. Fixed 500x750 to match the art.
+// Image-layered editor: a slim preset bar tops a worn faceplate backdrop, five
+// rotary knobs (Sustain, Tone, Volume, Output, Gate) sit on the face, a lamp
+// shows engage state, and the chrome footswitch toggles bypass. The window is
+// resizable with the art's aspect ratio locked. In the Standalone build it also
+// installs a native titlebar and a File/Help menu.
 class BigBubbleMuffEditor final : public juce::AudioProcessorEditor {
 public:
   explicit BigBubbleMuffEditor(BigBubbleMuffProcessor &p);
@@ -42,12 +45,17 @@ private:
   juce::Image background_;
   juce::TooltipWindow tooltips_;
 
+  PresetBar presetBar_;
+
   std::array<juce::Slider, kNumKnobs> knobs_;
   std::array<std::unique_ptr<SliderAttachment>, kNumKnobs> knobAttachments_;
 
   LedComponent led_;
   FootswitchButton footswitch_;
   std::unique_ptr<juce::ParameterAttachment> bypassAttachment_;
+
+  // Standalone-only: owns the window menu bar (null and unused under VST3).
+  std::unique_ptr<juce::MenuBarModel> menuModel_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BigBubbleMuffEditor)
 };

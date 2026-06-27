@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 
 #include "PluginEditor.h"
+#include "StateIO.h"
 
 namespace bbm {
 
@@ -83,25 +84,10 @@ void BigBubbleMuffProcessor::getStateInformation(juce::MemoryBlock &destData) {
 }
 
 void BigBubbleMuffProcessor::setStateInformation(const void *data, int sizeInBytes) {
-  // Host-supplied (untrusted) blob: validate defensively before applying.
-  if (data == nullptr || sizeInBytes <= 0 || sizeInBytes > 1 << 20) // 1 MiB sanity cap
-    return;
-
-  auto xml = getXmlFromBinary(data, sizeInBytes);
-  if (xml == nullptr)
-    return;
-
-  auto tree = juce::ValueTree::fromXml(*xml);
-  if (!tree.isValid() || tree.getType() != apvts_.state.getType())
-    return;
-
-  // Reject blobs from an incompatible future schema; APVTS itself clamps each
-  // restored parameter to its NormalisableRange.
-  const int version = static_cast<int>(tree.getProperty("stateVersion", kStateVersion));
-  if (version > kStateVersion)
-    return;
-
-  apvts_.replaceState(tree);
+  // Host-supplied (untrusted) blob: parse + validate defensively before applying
+  // (shared with the on-disk preset loader so both paths enforce the same rules).
+  if (auto tree = parsePluginStateBinary(data, sizeInBytes, apvts_.state.getType()))
+    apvts_.replaceState(*tree);
 }
 
 } // namespace bbm

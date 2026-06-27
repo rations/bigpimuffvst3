@@ -70,11 +70,12 @@ endif()
 
 juce_add_plugin(BigBubbleMuff
   PRODUCT_NAME              "BigBubbleMuff"
-  COMPANY_NAME              "BigBubbleMuff"
+  COMPANY_NAME              "rations"
   BUNDLE_ID                 "org.bigbubblemuff.vst3"
   PLUGIN_MANUFACTURER_CODE  Bbm0
   PLUGIN_CODE               Bbmf
-  FORMATS                   VST3
+  FORMATS                   VST3 Standalone
+  NEEDS_STANDALONE          TRUE
   VST3_CATEGORIES           Fx Distortion
   IS_SYNTH                  FALSE
   NEEDS_MIDI_INPUT          FALSE
@@ -98,8 +99,10 @@ juce_add_binary_data(BBMBinaryData SOURCES
 set(BBM_SOURCES
   src/PluginProcessor.cpp
   src/PluginEditor.cpp
+  src/PresetManager.cpp
   src/ui/MuffLookAndFeel.cpp
   src/ui/FootswitchButton.cpp
+  src/ui/PresetBar.cpp
   src/dsp/BigMuffPi.cpp)
 
 target_sources(BigBubbleMuff PRIVATE ${BBM_SOURCES})
